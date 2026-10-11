@@ -64,20 +64,8 @@ from workflow import (
 # ==============================================================================
 
 LOGS_DIR = Path("logs")
-LOGS_DIR.mkdir(parents=True, exist_ok=True)
-
 logger = logging.getLogger("spice_cli")
 logger.setLevel(logging.DEBUG)
-
-# File Handler (detailed debug info)
-log_file = LOGS_DIR / f"spice_pipeline_{datetime.now().strftime('%Y%m%d')}.log"
-file_handler = logging.FileHandler(log_file, encoding="utf-8")
-file_handler.setLevel(logging.DEBUG)
-file_formatter = logging.Formatter(
-    "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-file_handler.setFormatter(file_formatter)
 
 # Console Handler (clean user messages)
 console_handler = logging.StreamHandler(sys.stdout)
@@ -85,10 +73,23 @@ console_handler.setLevel(logging.INFO)
 console_formatter = logging.Formatter("%(message)s")
 console_handler.setFormatter(console_formatter)
 
-# Avoid duplicate handlers if reloaded
 if not logger.handlers:
-    logger.addHandler(file_handler)
     logger.addHandler(console_handler)
+
+# Try File Handler (if filesystem is writable)
+try:
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    log_file = LOGS_DIR / f"spice_pipeline_{datetime.now().strftime('%Y%m%d')}.log"
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setLevel(logging.DEBUG)
+    file_formatter = logging.Formatter(
+        "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+except Exception:
+    pass
 
 
 # ==============================================================================

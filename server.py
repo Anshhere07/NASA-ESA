@@ -653,10 +653,20 @@ class SpicePortalExtendedHandler(BaseHTTPRequestHandler):
     # --------------------------------------------------------------------------
 
     def serve_portal_dashboard(self) -> None:
-        template_file = Path(__file__).parent / "templates" / "portal.html"
-        if template_file.exists():
-            html_content = template_file.read_text(encoding="utf-8")
-        else:
+        template_candidates = [
+            Path(__file__).resolve().parent / "templates" / "portal.html",
+            Path.cwd() / "templates" / "portal.html",
+            Path("templates") / "portal.html",
+        ]
+        html_content = ""
+        for tc in template_candidates:
+            if tc.exists():
+                try:
+                    html_content = tc.read_text(encoding="utf-8")
+                    break
+                except Exception:
+                    pass
+        if not html_content:
             html_content = "<!DOCTYPE html><html><head><title>NASA / ESA SPICE Data Converter & Portal</title></head><body><h1>NASA / ESA SPICE Data Converter & Portal</h1></body></html>"
 
         body = html_content.encode("utf-8")
@@ -685,7 +695,7 @@ def run_portal_server(port: Optional[int] = None) -> None:
 
 
 # ==============================================================================
-# Cloud & Serverless Deployment Adapters (Vercel, WSGI, Render, etc.)
+# Cloud & Serverless Deployment Adapters (Vercel, WSGI, ASGI, Render, etc.)
 # ==============================================================================
 
 class WSGIAdapter:
@@ -787,6 +797,72 @@ class WSGIAdapter:
         return [body_bytes]
 
 
+class UniversalAdapter:
+    """Translates both WSGI (2 args) and ASGI (3 args) requests to handler execution."""
+
+    def __init__(self, handler_cls: type):
+        self.handler_cls = handler_cls
+        self.wsgi = WSGIAdapter(handler_cls)
+
+    def __call__(self, *args, **kwargs):
+        if len(args) == 2:
+            return self.wsgi(args[0], args[1])
+        elif len(args) == 3:
+            return self.asgi_handler(args[0], args[1], args[2])
+        raise TypeError(f"UniversalAdapter expected 2 (WSGI) or 3 (ASGI) arguments, got {len(args)}")
+
+    async def asgi_handler(self, scope: Dict[str, Any], receive: Any, send: Any):
+        if scope.get("type") != "http":
+            return
+        import io
+        body = b""
+        more_body = True
+        while more_body:
+            msg = await receive()
+            body += msg.get("body", b"")
+            more_body = msg.get("more_body", False)
+
+        environ = {
+            "REQUEST_METHOD": scope.get("method", "GET"),
+            "PATH_INFO": scope.get("path", "/"),
+            "QUERY_STRING": scope.get("query_string", b"").decode("latin1"),
+            "SERVER_PROTOCOL": f"HTTP/{scope.get('http_version', '1.1')}",
+            "wsgi.input": io.BytesIO(body),
+            "CONTENT_LENGTH": str(len(body)),
+        }
+        for name, val in scope.get("headers", []):
+            k = name.decode("latin1").upper().replace("-", "_")
+            v = val.decode("latin1")
+            if k in ("CONTENT_TYPE", "CONTENT_LENGTH"):
+                environ[k] = v
+            else:
+                environ[f"HTTP_{k}"] = v
+
+        captured = {"status": 200, "headers": []}
+
+        def start_response(status, headers, exc_info=None):
+            captured["status"] = int(status.split()[0])
+            captured["headers"] = headers
+
+        chunks = self.wsgi(environ, start_response)
+        body_bytes = b"".join(chunks)
+
+        headers_list = [
+            (str(k).lower().encode("latin1"), str(v).encode("latin1"))
+            for k, v in captured["headers"]
+        ]
+        await send({
+            "type": "http.response.start",
+            "status": captured["status"],
+            "headers": headers_list,
+        })
+        await send({
+            "type": "http.response.body",
+            "body": body_bytes,
+            "more_body": False,
+        })
+
+
 # 1. Native Vercel Serverless Function entrypoint (inherits BaseHTTPRequestHandler)
 class handler(SpicePortalExtendedHandler):
     """Vercel Python Serverless BaseHTTPRequestHandler entrypoint."""
@@ -794,7 +870,7 @@ class handler(SpicePortalExtendedHandler):
 
 
 # 2. Top-level WSGI / ASGI entrypoints for frameworks & deployment runners
-app = WSGIAdapter(SpicePortalExtendedHandler)
+app = UniversalAdapter(SpicePortalExtendedHandler)
 application = app
 
 

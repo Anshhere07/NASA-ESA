@@ -53,6 +53,47 @@ class TestDeploymentEntrypoints(unittest.TestCase):
         self.assertTrue(len(body_iterable) > 0)
         self.assertIn(b"NASA / ESA SPICE", body_iterable[0])
 
+    def test_api_index_entrypoint(self):
+        """Verify api/index.py correctly exports handler, app, and application."""
+        import sys
+        from pathlib import Path
+        api_dir = str(Path(__file__).resolve().parent.parent / "api")
+        if api_dir not in sys.path:
+            sys.path.insert(0, api_dir)
+        import index
+        self.assertTrue(hasattr(index, "handler"))
+        self.assertTrue(hasattr(index, "app"))
+        self.assertTrue(hasattr(index, "application"))
+
+    def test_asgi_adapter_execution(self):
+        """Verify the UniversalAdapter executes ASGI requests asynchronously."""
+        import asyncio
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [],
+            "http_version": "1.1",
+        }
+        sent_messages = []
+
+        async def mock_receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def mock_send(msg):
+            sent_messages.append(msg)
+
+        async def run_asgi():
+            await server.app(scope, mock_receive, mock_send)
+
+        asyncio.run(run_asgi())
+        self.assertEqual(len(sent_messages), 2)
+        self.assertEqual(sent_messages[0]["type"], "http.response.start")
+        self.assertEqual(sent_messages[0]["status"], 200)
+        self.assertEqual(sent_messages[1]["type"], "http.response.body")
+        self.assertIn(b"NASA / ESA SPICE", sent_messages[1]["body"])
+
 
 if __name__ == "__main__":
     unittest.main()

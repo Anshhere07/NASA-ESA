@@ -51,7 +51,10 @@ from exporter import (
 
 
 JOBS_BASE_DIR = Path("output") / "jobs"
-JOBS_BASE_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    JOBS_BASE_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
 
 
 @dataclass

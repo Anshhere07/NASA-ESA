@@ -1,8 +1,13 @@
 {
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "templates/**, kernels/**, config.json"
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/server.py"
+      "destination": "/api/index.py"
     }
   ]
 }
