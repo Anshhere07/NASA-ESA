@@ -604,5 +604,14 @@ def main() -> int:
     return 0
 
 
+# ==============================================================================
+# Cloud & Serverless Deployment Entrypoints
+# ==============================================================================
+try:
+    from server import SpicePortalExtendedHandler, handler, app, application
+except ImportError:
+    pass
+
+
 if __name__ == "__main__":
     sys.exit(main())

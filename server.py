@@ -52,9 +52,12 @@ OUTPUT_DIR = Path("output")
 KERNELS_DIR = Path("kernels")
 UPLOADS_DIR = Path("uploads")
 
-KERNELS_DIR.mkdir(parents=True, exist_ok=True)
-UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    KERNELS_DIR.mkdir(parents=True, exist_ok=True)
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
 
 
 def generate_archive_kernel_txt(filename: str) -> str:
@@ -664,18 +667,135 @@ class SpicePortalExtendedHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def run_portal_server(port: int = PORT) -> None:
-    server_address = ("127.0.0.1", port)
+def run_portal_server(port: Optional[int] = None) -> None:
+    if port is None:
+        port = int(os.environ.get("PORT", PORT))
+    host = os.environ.get("HOST", "0.0.0.0")
+    server_address = (host, port)
     httpd = HTTPServer(server_address, SpicePortalExtendedHandler)
     print("=" * 70)
     print(f" NASA / ESA SPICE DATA CONVERTER WEB PORTAL ACTIVE")
-    print(f" Web Portal: http://localhost:{port}/")
+    print(f" Web Portal: http://localhost:{port}/ (listening on {host}:{port})")
     print(f" API Endpoints:")
     print(f"   • Available Kernels: http://localhost:{port}/api/available-kernels")
     print(f"   • Archive Registry:  http://localhost:{port}/api/archive-kernels")
     print(f"   • Background Jobs:   http://localhost:{port}/api/jobs")
     print("=" * 70)
     httpd.serve_forever()
+
+
+# ==============================================================================
+# Cloud & Serverless Deployment Adapters (Vercel, WSGI, Render, etc.)
+# ==============================================================================
+
+class WSGIAdapter:
+    """Translates WSGI requests to SpicePortalExtendedHandler execution."""
+
+    def __init__(self, handler_cls: type):
+        self.handler_cls = handler_cls
+
+    def __call__(self, environ: Dict[str, Any], start_response: Any):
+        import io
+        from http.client import HTTPMessage
+
+        request_method = environ.get("REQUEST_METHOD", "GET")
+        path_info = environ.get("PATH_INFO", "/")
+        query_string = environ.get("QUERY_STRING", "")
+        full_path = f"{path_info}?{query_string}" if query_string else path_info
+
+        wsgi_input = environ.get("wsgi.input", io.BytesIO())
+        try:
+            content_length = int(environ.get("CONTENT_LENGTH", 0) or 0)
+        except (ValueError, TypeError):
+            content_length = 0
+
+        input_data = wsgi_input.read(content_length) if content_length > 0 else b""
+        rfile = io.BytesIO(input_data)
+        wfile = io.BytesIO()
+
+        headers = HTTPMessage()
+        for k, v in environ.items():
+            if k.startswith("HTTP_"):
+                header_name = k[5:].replace("_", "-").title()
+                headers[header_name] = str(v)
+            elif k in ("CONTENT_TYPE", "CONTENT_LENGTH") and v:
+                headers[k.replace("_", "-").title()] = str(v)
+
+        class DummyServer:
+            server_name = environ.get("SERVER_NAME", "localhost")
+            server_port = int(environ.get("SERVER_PORT", 80) or 80)
+
+        handler_inst = self.handler_cls.__new__(self.handler_cls)
+        handler_inst.server = DummyServer()
+        handler_inst.client_address = (
+            environ.get("REMOTE_ADDR", "127.0.0.1"),
+            int(environ.get("REMOTE_PORT", 0) or 0),
+        )
+        handler_inst.request_version = environ.get("SERVER_PROTOCOL", "HTTP/1.1")
+        handler_inst.command = request_method
+        handler_inst.path = full_path
+        handler_inst.headers = headers
+        handler_inst.rfile = rfile
+        handler_inst.wfile = wfile
+        handler_inst.close_connection = True
+
+        status_container = {"code": 200, "headers": []}
+
+        def mock_send_response(code: int, message: Optional[str] = None):
+            status_container["code"] = code
+
+        def mock_send_header(keyword: str, value: Any):
+            status_container["headers"].append((str(keyword), str(value)))
+
+        def mock_end_headers():
+            pass
+
+        def mock_send_error(code: int, message: Optional[str] = None, explain: Optional[str] = None):
+            status_container["code"] = code
+            err_body = (message or f"HTTP Error {code}").encode("utf-8")
+            status_container["headers"] = [
+                ("Content-Type", "text/plain; charset=utf-8"),
+                ("Content-Length", str(len(err_body))),
+            ]
+            wfile.write(err_body)
+
+        handler_inst.send_response = mock_send_response
+        handler_inst.send_header = mock_send_header
+        handler_inst.end_headers = mock_end_headers
+        handler_inst.send_error = mock_send_error
+
+        method_name = f"do_{request_method}"
+        if hasattr(handler_inst, method_name):
+            try:
+                getattr(handler_inst, method_name)()
+            except Exception as e:
+                mock_send_error(500, f"Internal Error: {e}")
+        else:
+            mock_send_error(501, f"Unsupported method: {request_method}")
+
+        code = status_container["code"]
+        reason = getattr(self.handler_cls, "responses", {}).get(code, ("OK",))[0]
+        status_line = f"{code} {reason}"
+
+        resp_headers = status_container["headers"]
+        body_bytes = wfile.getvalue()
+
+        if not any(k.lower() == "content-length" for k, _ in resp_headers):
+            resp_headers.append(("Content-Length", str(len(body_bytes))))
+
+        start_response(status_line, resp_headers)
+        return [body_bytes]
+
+
+# 1. Native Vercel Serverless Function entrypoint (inherits BaseHTTPRequestHandler)
+class handler(SpicePortalExtendedHandler):
+    """Vercel Python Serverless BaseHTTPRequestHandler entrypoint."""
+    pass
+
+
+# 2. Top-level WSGI / ASGI entrypoints for frameworks & deployment runners
+app = WSGIAdapter(SpicePortalExtendedHandler)
+application = app
 
 
 if __name__ == "__main__":
