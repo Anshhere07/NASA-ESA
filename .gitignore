@@ -1,0 +1,25 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Large binary SPICE kernels exceeding GitHub limits (100 MB limit)
+kernels/*.part
+kernels/de430.bsp
+kernels/de440.bsp
+kernels/MEX_ROB_040101_041231_003.BSP
+kernels/*.BSP
+
+# Runtime uploads, temporary jobs & logs
+uploads/
+output/jobs/
+logs/*.log
+
+# Environment & IDE
+.vscode/
+.idea/
+.env
+venv/
+env/

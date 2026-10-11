@@ -1,0 +1,18 @@
+{
+  "target": "4",
+  "target_name": "MARS BARYCENTER",
+  "observer": "399",
+  "observer_name": "EARTH",
+  "reference_frame": "J2000",
+  "aberration_correction": "LT+S",
+  "start_utc": "2026-10-11T00:00:00",
+  "end_utc": "2026-10-12T00:00:00",
+  "sampling_interval_hours": 1.0,
+  "output_formats": ["csv", "xlsx", "txt"],
+  "kernel_directory": "kernels",
+  "output_directory": "output",
+  "overwrite_policy": "overwrite",
+  "csv_filename": "spice_trajectory.csv",
+  "xlsx_filename": "spice_trajectory.xlsx",
+  "summary_filename": "trajectory_summary.txt"
+}

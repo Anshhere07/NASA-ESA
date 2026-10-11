@@ -1,0 +1,56 @@
+================================================================================
+SPICE TRAJECTORY EXTRACTION SUMMARY REPORT
+================================================================================
+
+1. CONFIGURATION & METADATA
+----------------------------------------
+  Target Body / Object:     4 (MARS BARYCENTER)
+  Observer Body / Center:   399 (EARTH)
+  Reference Coordinate Frame: J2000
+  Aberration Correction:    LT+S
+  Start UTC:                2026-10-11T00:00:00
+  End UTC:                  2026-10-12T00:00:00
+  Sampling Interval:        1.0 hours
+  Kernel Directory:         kernels
+
+2. SAMPLE EXTRACTION STATISTICS
+----------------------------------------
+  Total Requested Samples:  25
+  Successful Samples:       25
+  Failed Samples:           0
+  Position Units:           kilometres (km)
+  Velocity Units:           kilometres per second (km/s)
+
+3. BOUNDARY RECORDS
+----------------------------------------
+  [First Successful Record]
+    UTC:         2026-10-11T00:00:00
+    ET (sec):    844,948,869.182
+    Position:    X=-143,655,413.30 km, Y=172,712,191.24 km, Z=80,276,152.42 km
+    Velocity:    VX=-13.9558 km/s, VY=-24.4560 km/s, VZ=-9.9345 km/s
+    Range:       238,559,509.18 km
+
+  [Last Successful Record]
+    UTC:         2026-10-12T00:00:00.000
+    ET (sec):    845,035,269.182
+    Position:    X=-144,839,859.86 km, Y=170,597,262.72 km, Z=79,416,780.47 km
+    Velocity:    VX=-13.4621 km/s, VY=-24.4993 km/s, VZ=-9.9578 km/s
+    Range:       237,463,757.39 km
+
+4. POSITION & VELOCITY EXTREMA
+----------------------------------------
+  X Component (km):         Min = -144,839,859.86  |  Max = -143,655,413.30
+  Y Component (km):         Min = 170,597,262.72  |  Max = 172,712,191.24
+  Z Component (km):         Min = 79,416,780.47  |  Max = 80,276,152.42
+  Range Distance (km):      Min = 237,463,757.39  |  Max = 238,559,509.18
+  Relative Speed (km/s):    Min = 29.6749  |  Max = 29.8589
+
+5. SCIENTIFIC DATA PROVENANCE NOTICE
+----------------------------------------
+  CRITICAL DISTINCTION:
+  The state vectors and trajectory parameters in this report are mathematically
+  derived calculations produced via numerical integration and planetary ephemeris
+  models loaded from SPICE kernels (e.g. NASA JPL DE440S, NAIF LSK, and PCK).
+  They represent modeled celestial kinematics and are NOT direct in-situ spacecraft
+  telemetry, optical tracking observations, or radar measurements.
+================================================================================

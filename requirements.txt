@@ -1,0 +1,4 @@
+spiceypy>=8.2.0
+numpy>=2.0.0
+pandas>=3.0.0
+openpyxl>=3.1.5

@@ -1,0 +1,2470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="description" content="NASA and ESA SPICE Ephemeris Data Portal & Converter. Upload kernels, import from official archives, extract orbital state vectors, and export to CSV and Excel.">
+  <meta name="theme-color" content="#030712">
+  <title>NASA / ESA SPICE Data Converter & Portal</title>
+  
+  <!-- Modern Typography from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       1. CSS CUSTOM PROPERTIES (DESIGN SYSTEM TOKENS)
+       ========================================================================== */
+    :root {
+      --bg-canvas: #030712;
+      --bg-surface: rgba(15, 23, 42, 0.72);
+      --bg-surface-elevated: rgba(22, 33, 62, 0.75);
+      --bg-surface-active: rgba(30, 48, 92, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-card: rgba(56, 82, 138, 0.28);
+      --border-highlight: rgba(56, 189, 248, 0.45);
+      
+      /* Rich Curated Accents */
+      --cyan-bright: #38bdf8;
+      --cyan-glow: rgba(56, 189, 248, 0.35);
+      --blue-electric: #3b82f6;
+      --blue-deep: #1d4ed8;
+      --indigo-cosmic: #6366f1;
+      --purple-nebula: #a855f7;
+      --emerald-accent: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.25);
+      --amber-solar: #f59e0b;
+      --rose-flare: #f43f5e;
+      
+      /* Typography Colors */
+      --text-hero: #ffffff;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      /* Radii & Shadows */
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+      --radius-full: 9999px;
+      
+      --shadow-card: 0 16px 40px -12px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(255, 255, 255, 0.06);
+      --shadow-glow: 0 0 28px -4px var(--cyan-glow);
+      --shadow-btn: 0 8px 24px -6px rgba(14, 165, 233, 0.4);
+      
+      /* Transitions */
+      --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ==========================================================================
+       2. GLOBAL RESET & BASE STYLES
+       ========================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.5;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 10% 5%, rgba(37, 99, 235, 0.22) 0%, transparent 45%),
+        radial-gradient(circle at 85% 15%, rgba(168, 85, 247, 0.18) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 20% 90%, rgba(30, 64, 175, 0.18) 0%, transparent 50%),
+        radial-gradient(circle at 80% 85%, rgba(244, 63, 94, 0.1) 0%, transparent 45%);
+      background-attachment: fixed;
+    }
+
+    /* Starry background effect */
+    .space-particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image: 
+        radial-gradient(1px 1px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+        radial-gradient(1.5px 1.5px at 100px 150px, #38bdf8, rgba(0,0,0,0)),
+        radial-gradient(1px 1px at 250px 80px, #ffffff, rgba(0,0,0,0)),
+        radial-gradient(1.5px 1.5px at 350px 220px, #a855f7, rgba(0,0,0,0)),
+        radial-gradient(1px 1px at 500px 120px, #ffffff, rgba(0,0,0,0)),
+        radial-gradient(2px 2px at 700px 350px, #38bdf8, rgba(0,0,0,0)),
+        radial-gradient(1px 1px at 900px 180px, #ffffff, rgba(0,0,0,0)),
+        radial-gradient(1.5px 1.5px at 1100px 280px, #e2e8f0, rgba(0,0,0,0));
+      background-repeat: repeat;
+      background-size: 1200px 600px;
+      opacity: 0.55;
+    }
+
+    /* Layout Wrapper */
+    .app-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: clamp(14px, 3vw, 36px) clamp(12px, 3vw, 32px);
+    }
+
+    /* ==========================================================================
+       3. RESPONSIVE HEADER & MISSION CONTROL BAR
+       ========================================================================== */
+    header.portal-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: clamp(14px, 2.5vw, 22px);
+      background: var(--bg-surface);
+      backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-card);
+      margin-bottom: clamp(18px, 3vw, 30px);
+      position: relative;
+    }
+
+    .brand-identity {
+      display: flex;
+      align-items: center;
+      gap: clamp(12px, 2.5vw, 18px);
+      flex: 1 1 300px;
+    }
+
+    .brand-icon-wrap {
+      position: relative;
+      width: clamp(48px, 6vw, 56px);
+      height: clamp(48px, 6vw, 56px);
+      min-width: 48px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #1e40af, #0284c7 60%, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-glow);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      overflow: hidden;
+    }
+
+    .brand-icon-wrap svg {
+      width: 60%;
+      height: 60%;
+      fill: none;
+      stroke: #ffffff;
+      stroke-width: 2;
+    }
+
+    .brand-meta h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(18px, 3.2vw, 26px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      background: linear-gradient(180deg, #ffffff 30%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-meta p {
+      font-size: clamp(11px, 1.8vw, 13px);
+      color: var(--text-muted);
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .beacon-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: var(--radius-full);
+      color: #34d399;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .beacon-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: var(--emerald-accent);
+      box-shadow: 0 0 10px var(--emerald-accent);
+      animation: pulse-beacon 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse-beacon {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.5; }
+    }
+
+    .header-quick-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* ==========================================================================
+       4. RESPONSIVE NAVIGATION TABS (ALL DEVICES & TOUCH COMPATIBLE)
+       ========================================================================== */
+    .tabs-nav-container {
+      position: sticky;
+      top: 12px;
+      z-index: 50;
+      margin-bottom: clamp(18px, 3vw, 28px);
+    }
+
+    .tabs-nav-scroller {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(28px) saturate(200%);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
+      overflow-x: auto;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(56, 189, 248, 0.3) transparent;
+    }
+
+    .tabs-nav-scroller::-webkit-scrollbar {
+      height: 4px;
+    }
+    .tabs-nav-scroller::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.3);
+      border-radius: 4px;
+    }
+
+    .tab-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: clamp(9px, 1.8vw, 12px) clamp(12px, 2.2vw, 18px);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(13px, 1.6vw, 14px);
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.25s var(--ease-spring);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .tab-trigger .tab-icon {
+      font-size: 16px;
+      transition: transform 0.2s ease;
+    }
+
+    .tab-trigger:hover {
+      color: var(--text-hero);
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .tab-trigger:hover .tab-icon {
+      transform: scale(1.15);
+    }
+
+    .tab-trigger.active {
+      color: var(--cyan-bright);
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(37, 99, 235, 0.22));
+      border-color: var(--border-highlight);
+      box-shadow: 0 0 20px -3px rgba(56, 189, 248, 0.3);
+    }
+
+    .tab-trigger.active .tab-icon {
+      transform: scale(1.15);
+    }
+
+    /* ==========================================================================
+       5. CONTENT CARDS & PANELS
+       ========================================================================== */
+    .tab-panel {
+      display: none;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.3s var(--ease-spring), transform 0.3s var(--ease-spring);
+    }
+
+    .tab-panel.active {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .portal-card {
+      background: var(--bg-surface);
+      backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-xl);
+      padding: clamp(16px, 3.5vw, 32px);
+      box-shadow: var(--shadow-card);
+      margin-bottom: clamp(18px, 3vw, 26px);
+      transition: border-color 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .portal-card:hover {
+      border-color: rgba(56, 189, 248, 0.35);
+    }
+
+    .portal-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.4), transparent);
+      pointer-events: none;
+    }
+
+    .card-header-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: clamp(16px, 2.5vw, 24px);
+    }
+
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(18px, 2.8vw, 22px);
+      font-weight: 700;
+      color: var(--text-hero);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .card-title .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--cyan-bright);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .card-subtitle {
+      font-size: clamp(12px, 1.8vw, 13.5px);
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.45;
+    }
+
+    /* ==========================================================================
+       6. KPI METRICS CARDS ROW
+       ========================================================================== */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+      gap: clamp(10px, 2vw, 16px);
+      margin-bottom: clamp(16px, 2.5vw, 24px);
+    }
+
+    .kpi-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: clamp(12px, 2vw, 18px);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.25s var(--ease-spring);
+    }
+
+    .kpi-card:hover {
+      border-color: var(--border-highlight);
+      transform: translateY(-2px);
+    }
+
+    .kpi-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .kpi-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(20px, 3.2vw, 26px);
+      font-weight: 800;
+      color: var(--text-hero);
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* ==========================================================================
+       7. RESPONSIVE FORMS & CONTROLS (MOBILE TO DESKTOP)
+       ========================================================================== */
+    .form-grid-layout {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+      gap: clamp(14px, 2.5vw, 20px);
+      margin-bottom: 22px;
+    }
+
+    .form-group-field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .form-group-field label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.01em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-group-field label span.hint {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-dim);
+    }
+
+    .input-control,
+    .select-control,
+    .textarea-control {
+      width: 100%;
+      height: 44px;
+      padding: 0 14px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      color: var(--text-hero);
+      font-family: 'Inter', sans-serif;
+      font-size: clamp(13px, 1.8vw, 14px);
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    select.select-control {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 16px;
+      padding-right: 40px;
+    }
+
+    select.select-control[multiple] {
+      height: 90px;
+      padding: 8px 12px;
+      background-image: none;
+    }
+
+    .input-control:hover,
+    .select-control:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    .input-control:focus,
+    .select-control:focus {
+      border-color: var(--cyan-bright);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+      background: rgba(15, 23, 42, 0.98);
+    }
+
+    /* Custom Multi-Select Dropdown Component for Export Formats */
+    .custom-dropdown-container {
+      position: relative;
+      width: 100%;
+    }
+
+    .custom-dropdown-btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 6px 36px 6px 12px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      color: var(--text-hero);
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+      position: relative;
+      text-align: left;
+    }
+
+    .custom-dropdown-btn:hover {
+      border-color: rgba(56, 189, 248, 0.45);
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .custom-dropdown-btn:focus,
+    .custom-dropdown-btn.open {
+      border-color: var(--cyan-bright);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+    }
+
+    .custom-dropdown-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .custom-dropdown-btn .chevron-arrow {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+      pointer-events: none;
+    }
+
+    .custom-dropdown-btn.open .chevron-arrow {
+      transform: translateY(-50%) rotate(180deg);
+      color: var(--cyan-bright);
+    }
+
+    .custom-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: rgba(15, 23, 42, 0.98);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-highlight);
+      border-radius: var(--radius-md);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      padding: 6px;
+      display: none;
+      flex-direction: column;
+      gap: 3px;
+      animation: dropdownFadeIn 0.15s ease-out;
+    }
+
+    @keyframes dropdownFadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .custom-dropdown-menu.show {
+      display: flex;
+    }
+
+    .custom-dropdown-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s ease;
+      font-size: 13px;
+      color: var(--text-main);
+    }
+
+    .custom-dropdown-option:hover {
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    .custom-dropdown-option input[type="checkbox"] {
+      width: 17px;
+      height: 17px;
+      accent-color: var(--cyan-bright);
+      cursor: pointer;
+    }
+
+    .custom-dropdown-option .opt-badge {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.03em;
+    }
+
+    .custom-dropdown-option .opt-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .file-size-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--cyan-bright);
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 4px;
+      padding: 1px 7px;
+      margin-top: 5px;
+    }
+
+    .pulse-update {
+      animation: pulseHighlight 1.5s ease-out;
+    }
+
+    @keyframes pulseHighlight {
+      0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+    }
+
+    /* Modern Buttons */
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      min-height: 44px;
+      padding: 0 clamp(16px, 2.5vw, 24px);
+      border-radius: var(--radius-md);
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(13px, 1.8vw, 14.5px);
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.25s var(--ease-spring);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .btn-action:active {
+      transform: scale(0.97);
+    }
+
+    .btn-action-primary {
+      background: linear-gradient(135deg, #0284c7, #0284c7 50%, #0369a1);
+      color: #ffffff;
+      box-shadow: var(--shadow-btn);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-action-primary:hover {
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      box-shadow: 0 10px 28px -4px rgba(14, 165, 233, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .btn-action-success {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #ffffff;
+      box-shadow: 0 8px 24px -6px var(--emerald-glow);
+    }
+
+    .btn-action-success:hover {
+      background: linear-gradient(135deg, #10b981, #34d399);
+      transform: translateY(-1px);
+    }
+
+    .btn-action-amber {
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      color: #ffffff;
+      box-shadow: 0 8px 20px -6px rgba(245, 158, 11, 0.4);
+    }
+
+    .btn-action-secondary {
+      background: rgba(30, 41, 59, 0.7);
+      border-color: var(--border-card);
+      color: var(--text-main);
+    }
+
+    .btn-action-secondary:hover {
+      background: rgba(51, 65, 85, 0.8);
+      color: #ffffff;
+      border-color: var(--border-highlight);
+    }
+
+    .btn-action-sm {
+      min-height: 32px;
+      padding: 0 12px;
+      font-size: 12px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* ==========================================================================
+       8. PROGRESS BAR & REAL-TIME STATUS BOX
+       ========================================================================== */
+    .progress-hud-box {
+      display: none;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-highlight);
+      border-radius: var(--radius-lg);
+      padding: clamp(14px, 2.5vw, 20px);
+      margin-top: 18px;
+      box-shadow: var(--shadow-glow);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .progress-hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .progress-stage-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-hero);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .progress-percent-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--cyan-bright);
+    }
+
+    .progress-track-bg {
+      width: 100%;
+      height: 10px;
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+    }
+
+    .progress-track-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #0284c7, #38bdf8 70%, #818cf8);
+      border-radius: var(--radius-full);
+      transition: width 0.35s cubic-bezier(0.1, 0.9, 0.2, 1);
+      box-shadow: 0 0 16px var(--cyan-bright);
+    }
+
+    /* ==========================================================================
+       9. RADAR / ORBITAL TRAJECTORY PREVIEW CANVAS
+       ========================================================================== */
+    .radar-visualizer-card {
+      background: rgba(10, 15, 30, 0.85);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-xl);
+      padding: clamp(14px, 2.5vw, 22px);
+      margin-bottom: clamp(18px, 3vw, 26px);
+      position: relative;
+    }
+
+    .radar-controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .canvas-container {
+      width: 100%;
+      height: clamp(260px, 40vw, 420px);
+      position: relative;
+      background: radial-gradient(circle at center, rgba(14, 116, 144, 0.15) 0%, rgba(3, 7, 18, 0.95) 85%);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #trajectoryCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* ==========================================================================
+       10. RESPONSIVE DATA TABLE & MOBILE CARDS
+       ========================================================================== */
+    .table-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .search-box-wrap {
+      position: relative;
+      flex: 1 1 240px;
+      max-width: 400px;
+    }
+
+    .search-box-wrap input {
+      width: 100%;
+      height: 38px;
+      padding-left: 36px;
+      padding-right: 12px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      color: var(--text-hero);
+      font-size: 13px;
+    }
+
+    .search-box-wrap svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      stroke: var(--text-dim);
+    }
+
+    .responsive-table-scroller {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      background: rgba(15, 23, 42, 0.6);
+      max-height: 520px;
+    }
+
+    table.data-table-grid {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12.5px;
+    }
+
+    table.data-table-grid th {
+      background: rgba(15, 23, 42, 0.98);
+      color: var(--cyan-bright);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-card);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      white-space: nowrap;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    table.data-table-grid th:hover {
+      color: #ffffff;
+      background: rgba(30, 41, 59, 0.95);
+    }
+
+    table.data-table-grid td {
+      padding: 11px 14px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      white-space: nowrap;
+      color: var(--text-main);
+    }
+
+    table.data-table-grid tr:hover td {
+      background: rgba(56, 189, 248, 0.06);
+    }
+
+    /* Badges */
+    .badge-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-spk { background: rgba(56, 189, 248, 0.16); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-lsk { background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-pck { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-fk  { background: rgba(168, 85, 247, 0.16); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+
+    /* Mobile Card Layout for Records */
+    .mobile-records-list {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .mobile-record-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+
+    .mobile-record-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mobile-record-row .label {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Pagination */
+    .pagination-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .pagination-info {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    .pagination-btns {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ==========================================================================
+       11. DOWNLOAD HUB CARDS GRID
+       ========================================================================== */
+    .download-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+      gap: clamp(12px, 2vw, 18px);
+      margin-top: 20px;
+    }
+
+    .dl-hub-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: clamp(14px, 2.5vw, 20px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+      transition: all 0.25s var(--ease-spring);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dl-hub-card:hover {
+      border-color: var(--border-highlight);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    .dl-hub-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .dl-file-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .icon-csv { background: rgba(56, 189, 248, 0.18); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .icon-xlsx { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .icon-txt { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .icon-json { background: rgba(168, 85, 247, 0.18); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .icon-zip { background: linear-gradient(135deg, #1d4ed8, #0284c7); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.3); }
+
+    .dl-file-details h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-hero);
+    }
+
+    .dl-file-details p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    /* ==========================================================================
+       12. DROPZONE (TOUCH & DESKTOP)
+       ========================================================================== */
+    .dropzone-box {
+      border: 2px dashed rgba(56, 189, 248, 0.35);
+      border-radius: var(--radius-xl);
+      padding: clamp(28px, 5vw, 48px) 20px;
+      text-align: center;
+      background: rgba(56, 189, 248, 0.03);
+      cursor: pointer;
+      transition: all 0.25s var(--ease-spring);
+      position: relative;
+    }
+
+    .dropzone-box:hover,
+    .dropzone-box.dragover {
+      border-color: var(--cyan-bright);
+      background: rgba(56, 189, 248, 0.08);
+      box-shadow: 0 0 24px -6px var(--cyan-glow);
+    }
+
+    .dropzone-icon {
+      font-size: clamp(36px, 6vw, 48px);
+      margin-bottom: 12px;
+      display: inline-block;
+      animation: float-icon 3s ease-in-out infinite;
+    }
+
+    @keyframes float-icon {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    /* ==========================================================================
+       13. TOAST NOTIFICATIONS (NON-BLOCKING)
+       ========================================================================== */
+    #toastContainer {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: min(90vw, 380px);
+      pointer-events: none;
+    }
+
+    .toast-msg {
+      pointer-events: auto;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      color: var(--text-hero);
+      font-size: 13px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: slideInRight 0.3s var(--ease-spring);
+    }
+
+    .toast-msg.success { border-color: rgba(16, 185, 129, 0.6); }
+    .toast-msg.error { border-color: rgba(244, 63, 94, 0.6); }
+    .toast-msg.info { border-color: rgba(56, 189, 248, 0.6); }
+
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* ==========================================================================
+       14. MEDIA QUERIES (EACH & EVERY DEVICE)
+       ========================================================================== */
+    /* Small Mobile (< 480px) */
+    @media (max-width: 480px) {
+      .app-wrapper {
+        padding: 10px 10px 60px 10px;
+      }
+      header.portal-header {
+        border-radius: var(--radius-lg);
+        padding: 14px;
+      }
+      .brand-identity {
+        flex-direction: row;
+      }
+      .header-quick-actions {
+        width: 100%;
+      }
+      .header-quick-actions .btn-action {
+        width: 100%;
+      }
+      .tabs-nav-scroller {
+        padding: 4px;
+        border-radius: var(--radius-md);
+      }
+      .tab-trigger {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+      .portal-card {
+        padding: 14px;
+        border-radius: var(--radius-lg);
+      }
+      .responsive-table-scroller {
+        display: none; /* Switch to clean mobile cards on small screens */
+      }
+      .mobile-records-list {
+        display: flex;
+      }
+      #toastContainer {
+        bottom: 12px;
+        right: 12px;
+        left: 12px;
+        max-width: 100%;
+      }
+    }
+
+    /* Tablets (481px to 768px) */
+    @media (min-width: 481px) and (max-width: 768px) {
+      .app-wrapper {
+        padding: 16px 14px 60px 14px;
+      }
+      .form-grid-layout {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    /* Laptops & Desktops (> 769px) */
+    @media (min-width: 769px) {
+      .mobile-records-list {
+        display: none !important;
+      }
+      .responsive-table-scroller {
+        display: block !important;
+      }
+    }
+
+    /* Ultra-wide (> 1440px) */
+    @media (min-width: 1441px) {
+      .app-wrapper {
+        max-width: 1560px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="space-particles"></div>
+
+  <div class="app-wrapper">
+    <!-- Header Mission Bar -->
+    <header class="portal-header">
+      <div class="brand-identity">
+        <div class="brand-icon-wrap" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9" stroke="currentColor"/>
+            <ellipse cx="12" cy="12" rx="10" ry="4" stroke="currentColor" transform="rotate(30 12 12)"/>
+            <circle cx="12" cy="12" r="3" fill="#ffffff"/>
+          </svg>
+        </div>
+        <div class="brand-meta">
+          <h1>NASA / ESA SPICE Data Converter & Portal</h1>
+          <p>
+            Scientific Ephemeris Ingestion, Processing & Export Hub
+            <span class="beacon-status"><span class="beacon-dot"></span> CSPICE Engine Active</span>
+          </p>
+        </div>
+      </div>
+      <div class="header-quick-actions">
+        <a href="/download/all" class="btn-action btn-action-primary" id="btnDownloadLatestZip" title="Download all converted files in a ZIP bundle">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Latest Bundle (.zip)
+        </a>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs (Touch-scrollable for phones & tablets) -->
+    <nav class="tabs-nav-container" aria-label="Portal Navigation">
+      <div class="tabs-nav-scroller" role="tablist">
+        <button class="tab-trigger active" role="tab" aria-selected="true" onclick="switchTab('studio', this)">
+          <span class="tab-icon">🚀</span> Extraction Studio
+        </button>
+        <button class="tab-trigger" role="tab" aria-selected="false" onclick="switchTab('preview', this)">
+          <span class="tab-icon">📊</span> Data Preview & Downloads
+        </button>
+        <button class="tab-trigger" role="tab" aria-selected="false" onclick="switchTab('upload', this)">
+          <span class="tab-icon">📤</span> Kernel Uploads
+        </button>
+        <button class="tab-trigger" role="tab" aria-selected="false" onclick="switchTab('url-import', this)">
+          <span class="tab-icon">🌐</span> Safe URL Import
+        </button>
+        <button class="tab-trigger" role="tab" aria-selected="false" onclick="switchTab('archive', this)">
+          <span class="tab-icon">🏛️</span> NASA/ESA Archives
+        </button>
+      </div>
+    </nav>
+
+    <!-- TAB 1: EXTRACTION STUDIO -->
+    <main id="tab-studio" class="tab-panel active" role="tabpanel">
+      <div class="portal-card">
+        <div class="card-header-bar">
+          <div>
+            <h2 class="card-title">
+              <span class="step-badge">01</span> Configure Trajectory Extraction
+            </h2>
+            <p class="card-subtitle">
+              Configure target, observing body, reference coordinate frames, and sampling parameters. Powered by CSPICE <code>spkezr</code>.
+            </p>
+          </div>
+          <div>
+            <button type="button" class="btn-action btn-action-secondary btn-action-sm" onclick="loadAvailableKernels()">
+              🔄 Refresh Targets
+            </button>
+          </div>
+        </div>
+
+        <form id="extractionForm" onsubmit="handleStartJob(event)">
+          <div class="form-grid-layout">
+            <div class="form-group-field">
+              <label for="targetSelect">Target Celestial Body / Spacecraft <span class="hint">Discovered in SPK</span></label>
+              <select id="targetSelect" name="target" class="select-control" required>
+                <option value="4" selected>4 - MARS BARYCENTER</option>
+                <option value="301">301 - MOON</option>
+                <option value="1">1 - MERCURY BARYCENTER</option>
+                <option value="2">2 - VENUS BARYCENTER</option>
+                <option value="5">5 - JUPITER BARYCENTER</option>
+                <option value="10">10 - SUN</option>
+              </select>
+            </div>
+
+            <div class="form-group-field">
+              <label for="observerInput">Observer Reference Center <span class="hint">NAIF ID or Name</span></label>
+              <input type="text" id="observerInput" name="observer" class="input-control" value="399" placeholder="399 (Earth) or 0 (SSB)" required>
+            </div>
+
+            <div class="form-group-field">
+              <label for="frameSelect">Reference Coordinate Frame <span class="hint">Inertial Frame</span></label>
+              <select id="frameSelect" name="reference_frame" class="select-control">
+                <option value="J2000" selected>J2000 (Earth Mean Equator & Equinox)</option>
+                <option value="ECLIPJ2000">ECLIPJ2000 (Ecliptic J2000)</option>
+              </select>
+            </div>
+
+            <div class="form-group-field">
+              <label for="abcorrSelect">Aberration Correction <span class="hint">Relativistic & Light-Time</span></label>
+              <select id="abcorrSelect" name="aberration_correction" class="select-control">
+                <option value="LT+S" selected>LT+S (Light-Time & Stellar Aberration)</option>
+                <option value="LT">LT (Light-Time Only)</option>
+                <option value="NONE">NONE (Geometric / Uncorrected State)</option>
+                <option value="CN+S">CN+S (Converged Newtonian + Stellar)</option>
+              </select>
+            </div>
+
+            <div class="form-group-field">
+              <label for="startUtc">Start Epoch (UTC) <span class="hint">ISO 8601 Format</span></label>
+              <input type="text" id="startUtc" name="start_utc" class="input-control" value="2026-10-11T00:00:00" required>
+            </div>
+
+            <div class="form-group-field">
+              <label for="endUtc">End Epoch (UTC) <span class="hint">ISO 8601 Format</span></label>
+              <input type="text" id="endUtc" name="end_utc" class="input-control" value="2026-10-12T00:00:00" required>
+            </div>
+
+            <div class="form-group-field">
+              <label for="stepHours">Sampling Interval <span class="hint">Hours per sample</span></label>
+              <input type="number" id="stepHours" name="sampling_interval_hours" class="input-control" step="0.1" value="1.0" min="0.001" required>
+            </div>
+
+            <div class="form-group-field">
+              <label for="outputFormatSelect">Export Format <span class="hint">Single choice dropdown</span></label>
+              <select id="outputFormatSelect" name="output_format" class="select-control" required>
+                <option value="csv" selected>CSV (.csv) — Comma-Separated Values</option>
+                <option value="xlsx">Excel (.xlsx) — Formatted Workbook</option>
+                <option value="txt">TXT (.txt) — Diagnostic & Trajectory Summary</option>
+                <option value="json">JSON (.json) — Structured Ephemeris Payload</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px;">
+            <button type="submit" id="btnLaunchJob" class="btn-action btn-action-primary">
+              ⚡ Execute Extraction Job
+            </button>
+            <span id="jobStatusText" style="font-size: 13px; color: var(--text-muted);"></span>
+          </div>
+        </form>
+
+        <!-- Progress HUD Bar -->
+        <div id="progressBox" class="progress-hud-box">
+          <div class="progress-hud-header">
+            <span class="progress-stage-title">
+              <span class="beacon-dot"></span>
+              <span id="stageLabel">Initializing ephemeris extraction...</span>
+            </span>
+            <span id="percentLabel" class="progress-percent-val">0%</span>
+          </div>
+          <div class="progress-track-bg">
+            <div id="progressBarFill" class="progress-track-fill"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TAB 2: DATA PREVIEW & DOWNLOADS -->
+    <section id="tab-preview" class="tab-panel" role="tabpanel">
+      <!-- KPI Stats Banner -->
+      <div class="kpi-row" id="kpiStatsRow">
+        <div class="kpi-card">
+          <span class="kpi-label">Sampled Epochs</span>
+          <span class="kpi-value" id="kpiTotalSamples">-</span>
+          <span class="kpi-sub">Total time points</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Active Target</span>
+          <span class="kpi-value" id="kpiTargetName" style="color: var(--cyan-bright);">-</span>
+          <span class="kpi-sub" id="kpiObserverSub">Relative to Earth</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Mean Distance</span>
+          <span class="kpi-value" id="kpiMeanDistance">-</span>
+          <span class="kpi-sub">Kilometres</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Mean Velocity</span>
+          <span class="kpi-value" id="kpiMeanVelocity" style="color: #34d399;">-</span>
+          <span class="kpi-sub">km / second</span>
+        </div>
+      </div>
+
+      <!-- Radar Trajectory Visualizer -->
+      <div class="radar-visualizer-card">
+        <div class="radar-controls-bar">
+          <div>
+            <h3 class="card-title" style="font-size: 17px;">
+              🔭 Celestial Trajectory 2D Radar Projection
+            </h3>
+            <p class="card-subtitle">Real-time plotted coordinates relative to central observing body</p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn-action btn-action-secondary btn-action-sm" onclick="setPlaneView('XY')">Plane: X-Y</button>
+            <button type="button" class="btn-action btn-action-secondary btn-action-sm" onclick="setPlaneView('XZ')">Plane: X-Z</button>
+          </div>
+        </div>
+        <div class="canvas-container">
+          <canvas id="trajectoryCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Data Table Card -->
+      <div class="portal-card">
+        <div class="card-header-bar">
+          <div>
+            <h2 class="card-title">
+              <span class="step-badge">02</span> Ephemeris State Vectors
+            </h2>
+            <p class="card-subtitle">Searchable, sortable scientific dataset with 6-degree kinematics</p>
+          </div>
+          <div class="table-toolbar">
+            <div class="search-box-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="tableSearchInput" placeholder="Filter by epoch, coordinate, target..." oninput="handleFilterTable()">
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <select id="pageSizeSelect" class="select-control" style="width: 110px; height: 38px;" onchange="handlePageSizeChange(this.value)">
+                <option value="15">15 / page</option>
+                <option value="25" selected>25 / page</option>
+                <option value="50">50 / page</option>
+                <option value="100">100 / page</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop Scroller -->
+        <div class="responsive-table-scroller">
+          <table class="data-table-grid" id="mainDataTable">
+            <thead>
+              <tr>
+                <th onclick="sortTable('UTC')">UTC Epoch ↕</th>
+                <th onclick="sortTable('ET_seconds')">ET (s past J2000) ↕</th>
+                <th onclick="sortTable('Target')">Target ↕</th>
+                <th onclick="sortTable('Observer')">Observer ↕</th>
+                <th>Frame</th>
+                <th onclick="sortTable('X_km')" style="text-align: right;">X (km) ↕</th>
+                <th onclick="sortTable('Y_km')" style="text-align: right;">Y (km) ↕</th>
+                <th onclick="sortTable('Z_km')" style="text-align: right;">Z (km) ↕</th>
+                <th onclick="sortTable('VX_km_s')" style="text-align: right;">V_x (km/s) ↕</th>
+                <th onclick="sortTable('VY_km_s')" style="text-align: right;">V_y (km/s) ↕</th>
+                <th onclick="sortTable('VZ_km_s')" style="text-align: right;">V_z (km/s) ↕</th>
+              </tr>
+            </thead>
+            <tbody id="dataTableBody">
+              <tr><td colspan="11" style="text-align: center; padding: 28px;">Loading trajectory dataset...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile Card List View -->
+        <div class="mobile-records-list" id="mobileCardsList"></div>
+
+        <!-- Pagination Controls -->
+        <div class="pagination-bar">
+          <span class="pagination-info" id="paginationInfo">Showing 0 of 0 records</span>
+          <div class="pagination-btns">
+            <button type="button" class="btn-action btn-action-secondary btn-action-sm" id="btnPrevPage" onclick="changePage(-1)">← Prev</button>
+            <span id="pageNumberDisplay" style="font-size: 13px; font-weight: 600; padding: 0 8px;">1</span>
+            <button type="button" class="btn-action btn-action-secondary btn-action-sm" id="btnNextPage" onclick="changePage(1)">Next →</button>
+          </div>
+        </div>
+
+        <!-- Download Cards Hub -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 32px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h3 class="card-title" style="font-size: 18px;">
+              📦 Converted Datasets & Direct Downloads
+            </h3>
+            <p class="card-subtitle" id="downloadsSyncSubtitle">
+              Real-time synchronized outputs from latest SPICE extraction pipeline
+            </p>
+          </div>
+          <div id="downloadsLastUpdated" style="font-size: 12px; color: var(--cyan-bright); background: rgba(56, 189, 248, 0.08); padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid rgba(56, 189, 248, 0.2);">
+            Syncing dataset status...
+          </div>
+        </div>
+
+        <div class="download-cards-grid">
+          <div class="dl-hub-card">
+            <div class="dl-hub-top">
+              <div class="dl-file-icon icon-csv">CSV</div>
+              <div class="dl-file-details">
+                <h3 id="csvCardTitle">Comma-Separated Values</h3>
+                <p>Standard RFC 4180 format with 11 scientific fields.</p>
+                <span class="file-size-badge" id="csvSizeBadge">Calculating...</span>
+              </div>
+            </div>
+            <a href="/download/csv" id="dlBtnCsv" class="btn-action btn-action-primary btn-action-sm">
+              Download CSV
+            </a>
+          </div>
+
+          <div class="dl-hub-card">
+            <div class="dl-hub-top">
+              <div class="dl-file-icon icon-xlsx">XLSX</div>
+              <div class="dl-file-details">
+                <h3 id="xlsxCardTitle">Excel Workbook</h3>
+                <p>Styled Navy headers, auto-filters, frozen row, custom precision.</p>
+                <span class="file-size-badge" id="xlsxSizeBadge">Calculating...</span>
+              </div>
+            </div>
+            <a href="/download/xlsx" id="dlBtnXlsx" class="btn-action btn-action-success btn-action-sm">
+              Download Excel (.xlsx)
+            </a>
+          </div>
+
+          <div class="dl-hub-card">
+            <div class="dl-hub-top">
+              <div class="dl-file-icon icon-txt">TXT</div>
+              <div class="dl-file-details">
+                <h3 id="txtCardTitle">Text Diagnostic Summary</h3>
+                <p>Min/max extrema, boundaries, and data provenance notices.</p>
+                <span class="file-size-badge" id="txtSizeBadge">Calculating...</span>
+              </div>
+            </div>
+            <a href="/download/txt" id="dlBtnTxt" class="btn-action btn-action-amber btn-action-sm">
+              Download Summary (.txt)
+            </a>
+          </div>
+
+          <div class="dl-hub-card">
+            <div class="dl-hub-top">
+              <div class="dl-file-icon icon-zip">ZIP</div>
+              <div class="dl-file-details">
+                <h3 id="zipCardTitle">All Formats Bundle</h3>
+                <p>Compressed archive containing CSV, Excel, TXT & JSON.</p>
+                <span class="file-size-badge" id="zipSizeBadge">Archive Bundle</span>
+              </div>
+            </div>
+            <a href="/download/all" id="dlBtnZip" class="btn-action btn-action-primary btn-action-sm">
+              Download Master Bundle
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: KERNEL UPLOADS -->
+    <section id="tab-upload" class="tab-panel" role="tabpanel">
+      <div class="portal-card">
+        <h2 class="card-title">
+          <span class="step-badge">03</span> Multi-Kernel Upload Facility
+        </h2>
+        <p class="card-subtitle">
+          Upload any combination of SPICE kernels. Content is rigorously verified using binary DAF record structures or text KPL comment markers.
+        </p>
+
+        <div class="dropzone-box" id="dropzoneContainer" onclick="document.getElementById('kernelFileInput').click()" style="margin-top: 18px;">
+          <input type="file" id="kernelFileInput" multiple style="display: none;" onchange="handleUploadFiles(this.files)">
+          <div class="dropzone-icon">🚀</div>
+          <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; color: var(--text-hero);">
+            Select or drag & drop SPICE kernel files
+          </h3>
+          <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">
+            Supports .bsp, .spk, .tls, .tpc, .tf, .ti, .tsc, .bc (Up to 150 MB per file)
+          </p>
+        </div>
+
+        <div id="uploadResults" style="margin-top: 18px;"></div>
+      </div>
+
+      <div class="portal-card">
+        <div class="card-header-bar">
+          <div>
+            <h3 class="card-title"><span class="step-badge">04</span> Active Kernel Pool Inventory</h3>
+            <p class="card-subtitle">Loaded kernels with detected body NAIF IDs and temporal coverage</p>
+          </div>
+          <button type="button" id="btnScanPool" class="btn-action btn-action-secondary btn-action-sm" onclick="handleScanPoolClick()">
+            🔄 Scan Pool
+          </button>
+        </div>
+        <div class="responsive-table-scroller">
+          <table class="data-table-grid">
+            <thead>
+              <tr>
+                <th>Kernel Filename</th>
+                <th>Format Type</th>
+                <th>Storage Pool</th>
+                <th>File Size</th>
+                <th>Covered Target NAIF IDs</th>
+              </tr>
+            </thead>
+            <tbody id="installedKernelsBody">
+              <tr><td colspan="5" style="text-align: center; padding: 20px;">Scanning installed kernels...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: SAFE URL IMPORT -->
+    <section id="tab-url-import" class="tab-panel" role="tabpanel">
+      <div class="portal-card">
+        <h2 class="card-title">
+          <span class="step-badge">05</span> Safe Kernel Import from URL
+        </h2>
+        <p class="card-subtitle">
+          Protected with anti-SSRF filtering: Only verified NASA/ESA archive hosts are permitted. Loopback, private subnets (RFC 1918), and link-local addresses are rejected.
+        </p>
+
+        <form onsubmit="handleImportUrl(event)" style="margin-top: 20px;">
+          <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+            <input type="url" id="importUrlInput" class="input-control" style="flex: 1 1 300px;" placeholder="https://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/naif0012.tls" required>
+            <button type="submit" id="btnImportUrl" class="btn-action btn-action-primary">
+              ⬇️ Import & Verify
+            </button>
+          </div>
+          <p style="font-size: 12px; color: var(--text-dim);">
+            Downloads are streamed directly to disk in 64 KB chunks with real-time SHA-256 calculation.
+          </p>
+        </form>
+
+        <!-- Quick Suggestions -->
+        <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border-subtle);">
+          <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Official Verified Presets:</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+            <button type="button" class="btn-action btn-action-secondary btn-action-sm" onclick="setImportUrlPreset('https://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/naif0012.tls')">
+              NASA Leapseconds (naif0012.tls)
+            </button>
+            <button type="button" class="btn-action btn-action-secondary btn-action-sm" onclick="setImportUrlPreset('https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00010.tpc')">
+              Planetary Constants (pck00010.tpc)
+            </button>
+          </div>
+        </div>
+
+        <div id="urlImportResult" style="margin-top: 20px;"></div>
+      </div>
+    </section>
+
+    <!-- TAB 5: OFFICIAL NASA/ESA ARCHIVES -->
+    <section id="tab-archive" class="tab-panel" role="tabpanel">
+      <div class="portal-card">
+        <div class="card-header-bar">
+          <div>
+            <h2 class="card-title">
+              <span class="step-badge">06</span> Authoritative NASA NAIF & ESA PSA Archives
+            </h2>
+            <p class="card-subtitle">Official candidate kernels with live HTTP freshness verification</p>
+          </div>
+          <button type="button" class="btn-action btn-action-primary btn-action-sm" onclick="loadArchiveCatalog(true)">
+            🔍 Check Online Freshness
+          </button>
+        </div>
+
+        <div class="responsive-table-scroller">
+          <table class="data-table-grid">
+            <thead>
+              <tr>
+                <th>Kernel Product</th>
+                <th>Type</th>
+                <th>Mission / System</th>
+                <th>Scientific Coverage</th>
+                <th>Freshness Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="archiveCatalogBody">
+              <tr><td colspan="6" style="text-align: center; padding: 24px;">Loading official archive catalog...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Non-blocking Floating Toast Container -->
+  <div id="toastContainer" aria-live="polite"></div>
+
+  <!-- ==========================================================================
+       15. CLIENT-SIDE CONTROLLER & REACTIVE LOGIC
+       ========================================================================== -->
+  <script>
+    // Global State
+    let currentDataset = [];
+    let filteredDataset = [];
+    let currentPage = 1;
+    let pageSize = 25;
+    let sortColumn = 'UTC';
+    let sortAsc = true;
+    let activePlane = 'XY';
+    let activeJobId = null;
+
+    // Toast Notifications
+    function showToast(type, message) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast-msg ${type}`;
+      const icon = type === 'success' ? '✓' : type === 'error' ? '❌' : 'ℹ️';
+      toast.innerHTML = `<span style="font-weight:700;">${icon}</span> <span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // Navigation Tabs
+    function switchTab(tabId, triggerElem) {
+      document.querySelectorAll('.tab-trigger').forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+      });
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.remove('active');
+      });
+
+      if (triggerElem) {
+        triggerElem.classList.add('active');
+        triggerElem.setAttribute('aria-selected', 'true');
+      }
+      const targetPanel = document.getElementById('tab-' + tabId);
+      if (targetPanel) targetPanel.classList.add('active');
+
+      if (tabId === 'preview') {
+        loadPreviewData(activeJobId);
+      } else if (tabId === 'upload') {
+        loadAvailableKernels();
+      } else if (tabId === 'archive') {
+        loadArchiveCatalog(false);
+      }
+    }
+
+    // Drag and Drop Handling
+    const dropzone = document.getElementById('dropzoneContainer');
+    if (dropzone) {
+      ['dragenter', 'dragover'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          dropzone.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('dragover');
+        });
+      });
+      dropzone.addEventListener('drop', (e) => {
+        if (e.dataTransfer && e.dataTransfer.files.length) {
+          handleUploadFiles(e.dataTransfer.files);
+        }
+      });
+    }
+
+    function setImportUrlPreset(url) {
+      document.getElementById('importUrlInput').value = url;
+    }
+
+    // Export Formats Dropdown Handler
+    function toggleFormatsDropdown(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('outputFormatsMenu');
+      const btn = document.getElementById('outputFormatsDropdownBtn');
+      if (!menu || !btn) return;
+      const isOpen = menu.classList.contains('show');
+      if (isOpen) {
+        menu.classList.remove('show');
+        btn.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      } else {
+        menu.classList.add('show');
+        btn.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    function handleFormatSelectionChange() {
+      const checkboxes = document.querySelectorAll('.export-fmt-cb');
+      const checked = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+      const container = document.getElementById('selectedFormatsBadges');
+      if (!container) return;
+
+      if (!checked.length) {
+        container.innerHTML = '<span style="color:var(--text-dim); font-size:12px;">Select at least 1 format</span>';
+        return;
+      }
+
+      const badgeConfigs = {
+        'csv': '<span class="opt-badge badge-spk">CSV</span>',
+        'xlsx': '<span class="opt-badge badge-lsk">XLSX</span>',
+        'txt': '<span class="opt-badge badge-pck">TXT</span>',
+        'json': '<span class="opt-badge" style="background:rgba(168,85,247,0.25); color:#c084fc;">JSON</span>'
+      };
+
+      container.innerHTML = checked.map(val => badgeConfigs[val] || `<span class="opt-badge">${val.toUpperCase()}</span>`).join('');
+    }
+
+    // Close dropdown menu when clicking anywhere outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('outputFormatsMenu');
+      const btn = document.getElementById('outputFormatsDropdownBtn');
+      if (menu && menu.classList.contains('show')) {
+        if (!menu.contains(e.target) && !btn.contains(e.target)) {
+          menu.classList.remove('show');
+          btn.classList.remove('open');
+          btn.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
+
+    // Data Preview & Dynamic Updates
+    let autoUpdateTimer = null;
+    let lastDataSignature = null;
+
+    async function loadPreviewData(jobId = null, preservePage = false) {
+      const endpoint = jobId ? `/api/jobs/${jobId}/data` : '/api/data';
+      try {
+        const res = await fetch(endpoint);
+        const data = await res.json();
+        currentDataset = data.records || [];
+        
+        // Preserve search filter and current pagination page if requested
+        const q = (document.getElementById('tableSearchInput')?.value || '').toLowerCase().trim();
+        if (!q) {
+          filteredDataset = [...currentDataset];
+        } else {
+          filteredDataset = currentDataset.filter(r => {
+            return Object.values(r).some(val => String(val).toLowerCase().includes(q));
+          });
+        }
+
+        const maxPage = Math.ceil(filteredDataset.length / pageSize) || 1;
+        if (preservePage) {
+          currentPage = Math.min(Math.max(1, currentPage), maxPage);
+        } else {
+          currentPage = 1;
+        }
+
+        updateKPIs(currentDataset);
+        renderTable();
+        drawTrajectoryCanvas();
+        updateDownloadHub(data.files, jobId);
+
+        lastDataSignature = `${data.total}_${data.timestamp || 0}_${(currentDataset.length ? currentDataset[0].UTC : '')}`;
+      } catch (err) {
+        console.error("Error loading preview:", err);
+      }
+    }
+
+    function updateDownloadHub(files, jobId) {
+      if (!files) return;
+
+      if (files.csv) {
+        const badge = document.getElementById('csvSizeBadge');
+        if (badge) badge.innerText = files.csv.size || 'Ready';
+        const btn = document.getElementById('dlBtnCsv');
+        if (btn) btn.href = files.csv.url || (jobId ? `/api/jobs/${jobId}/download/csv` : '/download/csv');
+      }
+
+      if (files.xlsx) {
+        const badge = document.getElementById('xlsxSizeBadge');
+        if (badge) badge.innerText = files.xlsx.size || 'Ready';
+        const btn = document.getElementById('dlBtnXlsx');
+        if (btn) btn.href = files.xlsx.url || (jobId ? `/api/jobs/${jobId}/download/xlsx` : '/download/xlsx');
+      }
+
+      if (files.txt) {
+        const badge = document.getElementById('txtSizeBadge');
+        if (badge) badge.innerText = files.txt.size || 'Ready';
+        const btn = document.getElementById('dlBtnTxt');
+        if (btn) btn.href = files.txt.url || (jobId ? `/api/jobs/${jobId}/download/txt` : '/download/txt');
+      }
+
+      if (files.zip) {
+        const btn = document.getElementById('dlBtnZip');
+        if (btn) btn.href = files.zip.url || (jobId ? `/api/jobs/${jobId}/download/zip` : '/download/all');
+      }
+
+      const lastUpdatedElem = document.getElementById('downloadsLastUpdated');
+      if (lastUpdatedElem) {
+        const now = new Date().toLocaleTimeString();
+        lastUpdatedElem.innerHTML = `✓ Synced at <strong>${now}</strong>`;
+      }
+    }
+
+    // Periodic Background Poller (Keeps data updated time-to-time without breaking user pagination)
+    function startAutoDataUpdate() {
+      if (autoUpdateTimer) clearInterval(autoUpdateTimer);
+      autoUpdateTimer = setInterval(async () => {
+        const endpoint = activeJobId ? `/api/jobs/${activeJobId}/data` : '/api/data';
+        try {
+          const res = await fetch(endpoint);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (!data.records) return;
+
+          const newSig = `${data.total}_${data.timestamp || 0}_${(data.records.length ? data.records[0].UTC : '')}`;
+          if (newSig !== lastDataSignature) {
+            lastDataSignature = newSig;
+            currentDataset = data.records || [];
+            
+            // Reapply current filter and keep user's active page intact
+            const q = (document.getElementById('tableSearchInput')?.value || '').toLowerCase().trim();
+            if (!q) {
+              filteredDataset = [...currentDataset];
+            } else {
+              filteredDataset = currentDataset.filter(r => Object.values(r).some(val => String(val).toLowerCase().includes(q)));
+            }
+            const maxPage = Math.ceil(filteredDataset.length / pageSize) || 1;
+            currentPage = Math.min(Math.max(1, currentPage), maxPage);
+
+            updateKPIs(currentDataset);
+            renderTable();
+            drawTrajectoryCanvas();
+            updateDownloadHub(data.files, activeJobId);
+          }
+        } catch (e) {
+          // Silent polling check
+        }
+      }, 5000);
+    }
+
+    function updateKPIs(records) {
+      document.getElementById('kpiTotalSamples').innerText = records.length.toLocaleString();
+      if (!records.length) return;
+
+      const first = records[0];
+      document.getElementById('kpiTargetName').innerText = first.Target || 'Ephemeris';
+      document.getElementById('kpiObserverSub').innerText = `Relative to: ${first.Observer || 'Observer'}`;
+
+      let totalDist = 0;
+      let totalSpeed = 0;
+      let validCount = 0;
+
+      records.forEach(r => {
+        const x = parseFloat(r.X_km) || 0;
+        const y = parseFloat(r.Y_km) || 0;
+        const z = parseFloat(r.Z_km) || 0;
+        const dist = Math.sqrt(x*x + y*y + z*z);
+        const vx = parseFloat(r.VX_km_s) || 0;
+        const vy = parseFloat(r.VY_km_s) || 0;
+        const vz = parseFloat(r.VZ_km_s) || 0;
+        const speed = Math.sqrt(vx*vx + vy*vy + vz*vz);
+        if (!isNaN(dist) && dist > 0) {
+          totalDist += dist;
+          totalSpeed += speed;
+          validCount++;
+        }
+      });
+
+      if (validCount > 0) {
+        const meanDist = (totalDist / validCount);
+        const meanSpeed = (totalSpeed / validCount);
+        document.getElementById('kpiMeanDistance').innerText = meanDist > 1e6 
+          ? (meanDist / 1e6).toFixed(2) + ' M km' 
+          : meanDist.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+        document.getElementById('kpiMeanVelocity').innerText = meanSpeed.toFixed(3) + ' km/s';
+      }
+    }
+
+    // Interactive 2D Trajectory Radar Projection
+    function setPlaneView(plane) {
+      activePlane = plane;
+      drawTrajectoryCanvas();
+    }
+
+    function drawTrajectoryCanvas() {
+      const canvas = document.getElementById('trajectoryCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio || 600;
+      canvas.height = rect.height * window.devicePixelRatio || 350;
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const cx = W / 2;
+      const cy = H / 2;
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Radar Grid Rings
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+      ctx.lineWidth = 1;
+      const rings = [0.25, 0.5, 0.75, 0.95];
+      const maxR = Math.min(W, H) * 0.45;
+
+      rings.forEach(frac => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, maxR * frac, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+
+      // Crosshairs
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - maxR); ctx.lineTo(cx, cy + maxR);
+      ctx.moveTo(cx - maxR, cy); ctx.lineTo(cx + maxR, cy);
+      ctx.stroke();
+
+      if (!currentDataset.length) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '14px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No trajectory points loaded', cx, cy);
+        return;
+      }
+
+      // Calculate Extents
+      let maxDist = 0;
+      const points = currentDataset.map(r => {
+        const u = parseFloat(r.X_km) || 0;
+        const v = activePlane === 'XY' ? (parseFloat(r.Y_km) || 0) : (parseFloat(r.Z_km) || 0);
+        const dist = Math.sqrt(u*u + v*v);
+        if (dist > maxDist) maxDist = dist;
+        return { u, v };
+      });
+
+      if (maxDist === 0) maxDist = 1;
+      const scale = (maxR * 0.9) / maxDist;
+
+      // Draw Orbit Path
+      ctx.beginPath();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.5;
+      points.forEach((pt, i) => {
+        const px = cx + pt.u * scale;
+        const py = cy - pt.v * scale;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+
+      // Draw Central Observer Body (Earth / SSB)
+      ctx.beginPath();
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+      ctx.fillStyle = '#3b82f6';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Draw Orbiting Body End Point
+      if (points.length > 0) {
+        const last = points[points.length - 1];
+        const lx = cx + last.u * scale;
+        const ly = cy - last.v * scale;
+        ctx.beginPath();
+        ctx.arc(lx, ly, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#f43f5e';
+        ctx.shadowColor = '#f43f5e';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // Plane Label
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '12px JetBrains Mono, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`PROJECTION: ${activePlane === 'XY' ? 'X vs Y (Equatorial)' : 'X vs Z (Polar)'} | MAX: ${(maxDist/1e6).toFixed(1)}M km`, 16, 26);
+    }
+
+    // Search and Sort Filter
+    function handleFilterTable() {
+      const q = document.getElementById('tableSearchInput').value.toLowerCase().trim();
+      if (!q) {
+        filteredDataset = [...currentDataset];
+      } else {
+        filteredDataset = currentDataset.filter(r => {
+          return Object.values(r).some(val => String(val).toLowerCase().includes(q));
+        });
+      }
+      currentPage = 1;
+      renderTable();
+    }
+
+    function sortTable(col) {
+      if (sortColumn === col) {
+        sortAsc = !sortAsc;
+      } else {
+        sortColumn = col;
+        sortAsc = true;
+      }
+      filteredDataset.sort((a, b) => {
+        const va = a[col];
+        const vb = b[col];
+        const na = parseFloat(va);
+        const nb = parseFloat(vb);
+        if (!isNaN(na) && !isNaN(nb)) {
+          return sortAsc ? na - nb : nb - na;
+        }
+        return sortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+      });
+      renderTable();
+    }
+
+    function handlePageSizeChange(val) {
+      pageSize = parseInt(val, 10);
+      currentPage = 1;
+      renderTable();
+    }
+
+    function changePage(delta) {
+      const maxPage = Math.ceil(filteredDataset.length / pageSize) || 1;
+      currentPage = Math.max(1, Math.min(maxPage, currentPage + delta));
+      renderTable();
+    }
+
+    function renderTable() {
+      const total = filteredDataset.length;
+      const maxPage = Math.ceil(total / pageSize) || 1;
+      currentPage = Math.min(currentPage, maxPage);
+
+      const startIdx = (currentPage - 1) * pageSize;
+      const endIdx = Math.min(startIdx + pageSize, total);
+      const pageSlice = filteredDataset.slice(startIdx, endIdx);
+
+      const tbody = document.getElementById('dataTableBody');
+      const mobileList = document.getElementById('mobileCardsList');
+
+      document.getElementById('paginationInfo').innerText = `Showing ${total === 0 ? 0 : startIdx + 1}–${endIdx} of ${total.toLocaleString()} records`;
+      document.getElementById('pageNumberDisplay').innerText = `${currentPage} / ${maxPage}`;
+      document.getElementById('btnPrevPage').disabled = currentPage <= 1;
+      document.getElementById('btnNextPage').disabled = currentPage >= maxPage;
+
+      if (pageSlice.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 24px;">No records match your filter criteria.</td></tr>';
+        mobileList.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8;">No records match your filter criteria.</div>';
+        return;
+      }
+
+      // Desktop table
+      tbody.innerHTML = pageSlice.map(r => `
+        <tr>
+          <td style="color:#38bdf8; font-weight:600;">${r.UTC || '-'}</td>
+          <td>${Number(r.ET_seconds).toLocaleString(undefined, {minimumFractionDigits: 3, maximumFractionDigits: 3})}</td>
+          <td>${r.Target || '-'}</td>
+          <td>${r.Observer || '-'}</td>
+          <td><span class="badge-chip badge-spk">${r.Frame || 'J2000'}</span></td>
+          <td style="text-align:right;">${Number(r.X_km).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="text-align:right;">${Number(r.Y_km).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="text-align:right;">${Number(r.Z_km).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="text-align:right; color:#34d399;">${Number(r.VX_km_s).toFixed(4)}</td>
+          <td style="text-align:right; color:#34d399;">${Number(r.VY_km_s).toFixed(4)}</td>
+          <td style="text-align:right; color:#34d399;">${Number(r.VZ_km_s).toFixed(4)}</td>
+        </tr>
+      `).join('');
+
+      // Mobile cards view
+      mobileList.innerHTML = pageSlice.map(r => `
+        <div class="mobile-record-card">
+          <div class="mobile-record-row">
+            <span style="color:#38bdf8; font-weight:700;">${r.UTC || '-'}</span>
+            <span class="badge-chip badge-spk">${r.Frame || 'J2000'}</span>
+          </div>
+          <div class="mobile-record-row">
+            <span class="label">Target / Observer</span>
+            <span>${r.Target} rel to ${r.Observer}</span>
+          </div>
+          <div class="mobile-record-row">
+            <span class="label">Coordinates (km)</span>
+            <span>X: ${Number(r.X_km).toLocaleString(undefined, {maximumFractionDigits:0})}, Y: ${Number(r.Y_km).toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+          </div>
+          <div class="mobile-record-row">
+            <span class="label">Speed</span>
+            <span style="color:#34d399;">Vx: ${Number(r.VX_km_s).toFixed(2)}, Vy: ${Number(r.VY_km_s).toFixed(2)} km/s</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Job Execution & Background Worker Polling
+    async function handleStartJob(e) {
+      e.preventDefault();
+      const form = document.getElementById('extractionForm');
+      const selectedFormat = document.getElementById('outputFormatSelect')?.value || 'csv';
+
+      const payload = {
+        target: form.target.value,
+        observer: form.observer.value,
+        reference_frame: form.reference_frame.value,
+        aberration_correction: form.aberration_correction.value,
+        start_utc: form.start_utc.value,
+        end_utc: form.end_utc.value,
+        sampling_interval_hours: parseFloat(form.sampling_interval_hours.value),
+        output_formats: [selectedFormat]
+      };
+
+      document.getElementById('progressBox').style.display = 'block';
+      document.getElementById('jobStatusText').innerText = 'Submitting job to SPICE executor...';
+      document.getElementById('btnLaunchJob').disabled = true;
+
+      try {
+        const res = await fetch('/api/jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.job_id) {
+          activeJobId = data.job_id;
+          showToast('info', `Job ${data.job_id} launched`);
+          pollJobProgress(data.job_id);
+        } else {
+          showToast('error', data.error || 'Failed to submit job');
+          document.getElementById('btnLaunchJob').disabled = false;
+        }
+      } catch (err) {
+        showToast('error', 'Execution submission error: ' + err);
+        document.getElementById('btnLaunchJob').disabled = false;
+      }
+    }
+
+    async function pollJobProgress(jobId) {
+      const timer = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/jobs/${jobId}`);
+          const job = await res.json();
+
+          document.getElementById('stageLabel').innerText = job.stage || 'Extracting ephemerides...';
+          document.getElementById('percentLabel').innerText = (job.progress_pct || 0) + '%';
+          document.getElementById('progressBarFill').style.width = (job.progress_pct || 0) + '%';
+          document.getElementById('jobStatusText').innerText = `Job ${jobId} - ${job.status}`;
+
+          if (job.status === 'COMPLETED') {
+            clearInterval(timer);
+            document.getElementById('btnLaunchJob').disabled = false;
+            document.getElementById('jobStatusText').innerText = `✓ Job ${jobId} Completed (${job.success_count} samples)`;
+            showToast('success', `Job ${jobId} completed successfully!`);
+            setTimeout(() => {
+              switchTab('preview', document.querySelectorAll('.tab-trigger')[1]);
+              loadPreviewData(jobId, false);
+            }, 600);
+          } else if (job.status === 'FAILED') {
+            clearInterval(timer);
+            document.getElementById('btnLaunchJob').disabled = false;
+            document.getElementById('jobStatusText').innerText = `❌ Job ${jobId} Failed`;
+            showToast('error', `Job Failed: ${job.error_message}`);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }, 500);
+    }
+
+    // Available Kernels & Target Discovery
+    async function loadAvailableKernels(isScanClick = false) {
+      try {
+        const res = await fetch(`/api/available-kernels?_t=${Date.now()}`);
+        const data = await res.json();
+        const tbody = document.getElementById('installedKernelsBody');
+        const targetSelect = document.getElementById('targetSelect');
+
+        if (!data.kernels || !data.kernels.length) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:18px;">No kernels found in pool.</td></tr>';
+          return;
+        }
+
+        // Populate Target Dropdown with detected bodies
+        const targetsMap = new Map();
+        data.kernels.forEach(k => {
+          if (k.targets && k.targets.length) {
+            k.targets.forEach(t => targetsMap.set(String(t.id), `${t.id} - ${t.name}`));
+          }
+        });
+
+        if (targetsMap.size > 0 && targetSelect) {
+          const currentVal = targetSelect.value;
+          targetSelect.innerHTML = Array.from(targetsMap.entries()).map(([id, label]) => `
+            <option value="${id}" ${id === currentVal ? 'selected' : ''}>${label}</option>
+          `).join('');
+        }
+
+        tbody.innerHTML = data.kernels.map(k => {
+          let targetsStr = '-';
+          if (k.targets && k.targets.length > 0) {
+            targetsStr = k.targets.map(t => `${t.id} (${t.name})`).join(', ');
+          }
+          const badgeClass = k.kernel_type === 'SPK' ? 'badge-spk' : k.kernel_type === 'LSK' ? 'badge-lsk' : 'badge-pck';
+          const sizeKb = (k.size_bytes / 1024).toFixed(1);
+          return `
+            <tr>
+              <td><strong style="color:#ffffff;">${k.filename}</strong></td>
+              <td><span class="badge-chip ${badgeClass}">${k.kernel_type}</span></td>
+              <td><span style="font-size:12px; color:var(--cyan-bright);">${k.source_group}</span></td>
+              <td>${sizeKb} KB</td>
+              <td style="color:#94a3b8; max-width:320px; overflow:hidden; text-overflow:ellipsis;">${targetsStr}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error("Error loading kernels:", err);
+      }
+    }
+
+    // Active Scan Pool Trigger with User Feedback
+    async function handleScanPoolClick() {
+      const btn = document.getElementById('btnScanPool');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Scanning Pool...';
+      }
+      showToast('info', 'Scanning active kernel pool inventory...');
+      try {
+        await loadAvailableKernels(true);
+        showToast('success', 'Active kernel pool inventory refreshed successfully!');
+      } catch (err) {
+        showToast('error', 'Kernel scan error: ' + err);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '🔄 Scan Pool';
+        }
+      }
+    }
+
+    // File Upload Handler
+    async function handleUploadFiles(files) {
+      if (!files.length) return;
+      const formData = new FormData();
+      for (const f of files) formData.append('files', f);
+
+      const resBox = document.getElementById('uploadResults');
+      resBox.innerHTML = '<span style="color:var(--cyan-bright);">⏳ Uploading & validating kernels...</span>';
+
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const json = await res.json();
+        resBox.innerHTML = (json.uploaded_files || []).map(f => `
+          <div style="font-size:13px; padding:6px 0; color:${f.status === 'REJECTED' ? '#f43f5e' : '#34d399'}">
+            ${f.status === 'REJECTED' ? '❌' : '✓'} ${f.filename} (${f.kernel_type || f.error})
+          </div>
+        `).join('');
+        showToast('success', `Processed ${json.count} kernel files.`);
+        loadAvailableKernels(false);
+      } catch (err) {
+        resBox.innerHTML = `<span style="color:#f43f5e;">Upload failure: ${err}</span>`;
+        showToast('error', 'Upload error');
+      }
+    }
+
+    // Safe URL Import Handler
+    async function handleImportUrl(e) {
+      e.preventDefault();
+      const urlInput = document.getElementById('importUrlInput');
+      const resBox = document.getElementById('urlImportResult');
+      resBox.innerHTML = '<span style="color:var(--cyan-bright);">⏳ Validating SSRF rules & streaming download...</span>';
+
+      try {
+        const res = await fetch('/api/import-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: urlInput.value })
+        });
+        const json = await res.json();
+        if (json.status === 'SUCCESS') {
+          resBox.innerHTML = `
+            <div style="color:#34d399; font-size:13px; padding:10px; background:rgba(16,185,129,0.1); border-radius:8px;">
+              ✓ Successfully imported <strong>${json.kernel.filename}</strong> (${(json.kernel.size_bytes/1024).toFixed(1)} KB).<br>
+              SHA-256: <code>${json.kernel.sha256}</code>
+            </div>
+          `;
+          showToast('success', `Imported ${json.kernel.filename}`);
+          urlInput.value = '';
+          loadAvailableKernels(false);
+        } else {
+          resBox.innerHTML = `<div style="color:#f43f5e; font-size:13px;">❌ ${json.error}</div>`;
+          showToast('error', json.error);
+        }
+      } catch (err) {
+        resBox.innerHTML = `<div style="color:#f43f5e; font-size:13px;">❌ Error: ${err}</div>`;
+        showToast('error', 'Import network error');
+      }
+    }
+
+    // NASA/ESA Archive Catalog (Auto-loads on page load)
+    async function loadArchiveCatalog(verifyOnline = false) {
+      try {
+        if (verifyOnline) {
+          showToast('info', 'Verifying online archive freshness...');
+        }
+        const res = await fetch(`/api/archive-kernels?verify=${verifyOnline}`);
+        const list = await res.json();
+        const tbody = document.getElementById('archiveCatalogBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = list.map(item => `
+          <tr>
+            <td><strong style="color:#ffffff;">${item.filename}</strong></td>
+            <td><span class="badge-chip badge-spk">${item.kernel_type}</span></td>
+            <td>${item.mission_or_system}</td>
+            <td style="font-size:12px; color:#cbd5e1;">${item.coverage_summary}</td>
+            <td>
+              <span style="font-size:11.5px; font-weight:600; color:${item.archive_accessible ? '#34d399' : '#f59e0b'}">
+                ${item.freshness_status}
+              </span>
+            </td>
+            <td>
+              <button type="button" class="btn-action btn-action-primary btn-action-sm" onclick="downloadFromArchive('${item.filename}', this)">
+                Download
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error("Error loading archive catalog:", err);
+      }
+    }
+
+    // Direct Archive Download Delivering Readable .txt Format
+    function downloadFromArchive(filename, btnElem) {
+      const originalText = btnElem ? btnElem.innerHTML : 'Download';
+      const txtFilename = (filename.replace(/\.[^/.]+$/, "") || filename) + '.txt';
+
+      if (btnElem) {
+        btnElem.disabled = true;
+        btnElem.innerHTML = '⏳ Downloading...';
+      }
+      showToast('info', `Downloading ${txtFilename} in readable text format...`);
+
+      // Direct browser download of readable .txt format
+      const dlLink = document.createElement('a');
+      dlLink.href = `/download/archive-txt/${encodeURIComponent(filename)}`;
+      dlLink.download = txtFilename;
+      document.body.appendChild(dlLink);
+      dlLink.click();
+      dlLink.remove();
+
+      showToast('success', `✓ Successfully downloaded ${txtFilename}!`);
+      if (btnElem) {
+        btnElem.innerHTML = '✓ Downloaded (.txt)';
+        btnElem.classList.replace('btn-action-primary', 'btn-action-success');
+        setTimeout(() => {
+          btnElem.disabled = false;
+          btnElem.innerHTML = originalText;
+          btnElem.classList.replace('btn-action-success', 'btn-action-primary');
+        }, 3000);
+      }
+    }
+
+    // Window Resize Redraw
+    window.addEventListener('resize', () => {
+      drawTrajectoryCanvas();
+    });
+
+    // Initial Load: Auto-fetch all datasets, kernel pools, and archive catalog
+    window.addEventListener('DOMContentLoaded', () => {
+      loadPreviewData(null, false);
+      loadAvailableKernels(false);
+      loadArchiveCatalog(false);
+      startAutoDataUpdate();
+      handleFormatSelectionChange();
+    });
+  </script>
+</body>
+</html>
