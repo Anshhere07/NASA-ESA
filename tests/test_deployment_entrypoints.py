@@ -94,6 +94,22 @@ class TestDeploymentEntrypoints(unittest.TestCase):
         self.assertEqual(sent_messages[1]["type"], "http.response.body")
         self.assertIn(b"NASA / ESA SPICE", sent_messages[1]["body"])
 
+    def test_vercel_rewrite_path_normalization(self):
+        """Verify that /api, /api/, and /api/index.py all serve the dashboard (no 404)."""
+        for test_path in ("/", "/api", "/api/", "/api/index.py", "/dashboard"):
+            environ = {
+                "REQUEST_METHOD": "GET",
+                "PATH_INFO": test_path,
+                "QUERY_STRING": "",
+                "wsgi.input": None,
+            }
+            captured = {}
+            def start_response(status, headers):
+                captured["status"] = status
+            chunks = server.app(environ, start_response)
+            self.assertIn("200", captured["status"], f"Expected 200 for path: {test_path}")
+            self.assertIn(b"NASA / ESA SPICE", b"".join(chunks))
+
 
 if __name__ == "__main__":
     unittest.main()

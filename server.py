@@ -186,50 +186,91 @@ class SpicePortalExtendedHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-    def do_GET(self) -> None:
-        parsed_url = urlparse(self.path)
-        path = parsed_url.path
-        query = parse_qs(parsed_url.query)
+    def get_clean_path(self) -> Tuple[str, Dict[str, List[str]]]:
+        """Normalize URL path across direct local requests and Vercel/proxy rewrites."""
+        raw = self.path or "/"
 
-        if path in ("/", "/index.html"):
+        # 1. Check proxy / Vercel forwarded headers
+        if hasattr(self, "headers") and self.headers:
+            for hk in (
+                "x-forwarded-uri",
+                "x-vercel-forwarded-path",
+                "x-matched-path",
+                "x-original-uri",
+                "x-rewrite-url",
+            ):
+                val = self.headers.get(hk)
+                if val:
+                    raw = val
+                    break
+
+        parsed = urlparse(raw)
+        path = parsed.path or "/"
+        query = parse_qs(parsed.query)
+
+        # 2. Strip serverless function rewrite prefixes
+        for prefix in ("/api/index.py", "/api/index", "/index.py"):
+            if path.startswith(prefix):
+                path = path[len(prefix):] or "/"
+                break
+
+        # Remove trailing slash unless root
+        if len(path) > 1 and path.endswith("/"):
+            path = path[:-1]
+
+        return path, query
+
+    def do_GET(self) -> None:
+        path, query = self.get_clean_path()
+
+        # Route 1: Web Portal Dashboard (Root, index, or SPA route fallback)
+        if (
+            path in ("/", "", "/api", "/api/", "/index.html", "/api/index.html")
+            or (not path.startswith("/api/") and not path.startswith("/download/") and path != "/favicon.ico")
+        ):
             self.serve_portal_dashboard()
-        elif path == "/favicon.ico":
+        elif path in ("/favicon.ico", "/api/favicon.ico"):
             svg_icon = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#0284c7"/><circle cx="12" cy="12" r="4" fill="#ffffff"/></svg>'
             self.send_response(200)
             self.send_header("Content-Type", "image/svg+xml")
             self.send_header("Content-Length", str(len(svg_icon)))
             self.end_headers()
             self.wfile.write(svg_icon)
-        elif path == "/api/data":
+        elif path in ("/api/data", "/data"):
             # Backward-compatible global data API
             self.serve_legacy_data_api()
-        elif path == "/api/available-kernels":
+        elif path in ("/api/available-kernels", "/available-kernels"):
             self.handle_get_available_kernels()
-        elif path == "/api/archive-kernels":
+        elif path in ("/api/archive-kernels", "/archive-kernels"):
             verify_online = query.get("verify", ["false"])[0].lower() in ("true", "1")
             self.send_json_response(get_archive_catalog(verify_online=verify_online))
-        elif path == "/api/jobs":
+        elif path in ("/api/jobs", "/jobs"):
             self.send_json_response(global_job_manager.list_jobs())
-        elif path.startswith("/api/jobs/") and path.endswith("/data"):
-            job_id = path.split("/")[3]
+        elif (path.startswith("/api/jobs/") or path.startswith("/jobs/")) and path.endswith("/data"):
+            parts = path.strip("/").split("/")
+            job_idx = 2 if parts[0] == "api" else 1
+            job_id = parts[job_idx]
             self.handle_get_job_data(job_id)
-        elif path.startswith("/api/jobs/") and "/download/" in path:
-            parts = path.split("/")
-            job_id = parts[3]
-            fmt = parts[5]
+        elif (path.startswith("/api/jobs/") or path.startswith("/jobs/")) and "/download/" in path:
+            parts = path.strip("/").split("/")
+            job_idx = 2 if parts[0] == "api" else 1
+            job_id = parts[job_idx]
+            fmt = parts[job_idx + 2]
             self.handle_job_download(job_id, fmt)
-        elif path.startswith("/api/jobs/"):
-            job_id = path.split("/")[3]
+        elif path.startswith("/api/jobs/") or path.startswith("/jobs/"):
+            parts = path.strip("/").split("/")
+            job_idx = 2 if parts[0] == "api" else 1
+            job_id = parts[job_idx]
             job = global_job_manager.get_job(job_id)
             if job:
                 self.send_json_response(job.to_dict())
             else:
                 self.send_json_response({"error": f"Job '{job_id}' not found."}, status=404)
-        elif path.startswith("/download/archive-txt/"):
-            kname = path.replace("/download/archive-txt/", "").strip()
+        elif "/download/archive-txt/" in path:
+            kname = path.split("/download/archive-txt/")[1].strip()
             self.serve_archive_kernel_txt(kname)
-        elif path.startswith("/download/kernel/"):
-            kname = path.replace("/download/kernel/", "").strip()
+        elif "/download/kernel/" in path:
+            kname = path.split("/download/kernel/")[1].strip()
             kpath = KERNELS_DIR / kname
             if not kpath.exists():
                 kpath = UPLOADS_DIR / kname
@@ -237,32 +278,31 @@ class SpicePortalExtendedHandler(BaseHTTPRequestHandler):
                 self.serve_file(kpath, "application/octet-stream", kname)
             else:
                 self.send_error(404, f"Kernel '{kname}' not found.")
-        elif path == "/download/csv":
+        elif path in ("/download/csv", "/api/download/csv"):
             self.serve_file(OUTPUT_DIR / "spice_trajectory.csv", "text/csv", "spice_trajectory.csv")
-        elif path == "/download/xlsx":
+        elif path in ("/download/xlsx", "/api/download/xlsx"):
             self.serve_file(
                 OUTPUT_DIR / "spice_trajectory.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "spice_trajectory.xlsx"
             )
-        elif path == "/download/txt":
+        elif path in ("/download/txt", "/api/download/txt"):
             self.serve_file(OUTPUT_DIR / "trajectory_summary.txt", "text/plain", "trajectory_summary.txt")
-        elif path == "/download/all":
+        elif path in ("/download/all", "/api/download/all"):
             self.serve_zip_bundle()
         else:
             self.send_error(404, "Endpoint Not Found")
 
     def do_POST(self) -> None:
-        parsed_url = urlparse(self.path)
-        path = parsed_url.path
+        path, _ = self.get_clean_path()
 
-        if path == "/api/upload":
+        if path in ("/api/upload", "/upload"):
             self.handle_file_upload()
-        elif path == "/api/import-url":
+        elif path in ("/api/import-url", "/import-url"):
             self.handle_url_import()
-        elif path == "/api/archive-download":
+        elif path in ("/api/archive-download", "/archive-download"):
             self.handle_archive_download()
-        elif path == "/api/jobs":
+        elif path in ("/api/jobs", "/jobs"):
             self.handle_create_job()
         else:
             self.send_error(404, "Endpoint Not Found")
